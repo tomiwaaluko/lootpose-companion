@@ -69,7 +69,10 @@ internal sealed class TrayApp : ApplicationContext
             };
         }
 
-        // The update check (Task 13) is wired here.
+        var updates = new System.Windows.Forms.Timer { Interval = (int)TimeSpan.FromDays(1).TotalMilliseconds };
+        updates.Tick += (_, _) => CheckForUpdate();
+        updates.Start();
+        CheckForUpdate();
 
         if (showWindow) ShowWindow();
         Kick();
@@ -82,6 +85,19 @@ internal sealed class TrayApp : ApplicationContext
         menu.Items.Add("Open LootPose", null, (_, _) => Browser.Open(CompanionInfo.WebAppUrl));
         menu.Items.Add("Quit", null, (_, _) => Quit());
         return menu;
+    }
+
+    /// <summary>At start and once a day. Only shows Update available; never downloads anything.</summary>
+    private async void CheckForUpdate()
+    {
+        try
+        {
+            if (await new UpdateCheck(_http).NewerExistsAsync(CompanionInfo.Version, _quit.Token)) _window.ShowUpdateAvailable();
+        }
+        catch (OperationCanceledException)
+        {
+            // Quitting.
+        }
     }
 
     private void ShowWindow()
