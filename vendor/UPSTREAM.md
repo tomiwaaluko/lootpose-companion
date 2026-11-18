@@ -20,6 +20,10 @@ Paths are the same as in LED-N's repository, so a newer copy can be laid over th
 
 No copied file is edited.
 
+Additional file-specific notice: `lib/OozSharp/Kraken.cs` retains a GNU GPL version 3-or-later header (Powzix,
+C# conversion by SL-x-TnT). The reader builds this code through `Unreal.Encryption` and `OozSharp`. Keep the
+notice intact. The owner reviews distribution licensing before a release.
+
 ## Local changes
 
 1. `src/ChestCounter/ReplayHeaderProbe.cs` (new): the `ReplayHeaderProbe` class, copied unchanged from LED-N's
