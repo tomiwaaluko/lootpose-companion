@@ -220,14 +220,14 @@ public sealed class CompanionEngine
         if (flags.InProgress) return StatusText.InProgress;
         var latest = _ledger.Data.Matches.OrderByDescending(m => m.HandledAt).FirstOrDefault();
         if (latest is { Outcome: MatchOutcome.CouldNotBeRead, CutShort: false }) return StatusText.Unsupported;
-        if (_eventEnded) return StatusText.EventEnded;
+        if (_eventEnded || _ledger.Data.PushRejection == SyncState.EventEnded) return StatusText.EventEnded;
         if (flags.WaitingForData) return StatusText.WaitingForData;
         var counted = _ledger.Data.Matches
             .Where(m => m.Outcome == MatchOutcome.Counted && m.DeviceId == _ledger.Data.DeviceId)
             .OrderByDescending(m => m.HandledAt)
             .FirstOrDefault();
         if (counted is null) return StatusText.Waiting;
-        var synced = _ledger.Data.Pending is null && _syncState != SyncState.Rejected;
+        var synced = _ledger.Data.Pending is null && _ledger.Data.PushRejection is null && _syncState != SyncState.Rejected;
         return StatusText.LastMatch(counted.Chests, synced);
     }
 
