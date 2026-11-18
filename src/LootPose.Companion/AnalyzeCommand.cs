@@ -7,27 +7,36 @@ internal static class AnalyzeCommand
 {
     private const int AttachParentProcess = -1;
 
-    [DllImport("kernel32.dll", SetLastError = true)]
+    [DllImport("kernel32.dll")]
     [return: MarshalAs(UnmanagedType.Bool)]
     private static extern bool AttachConsole(int processId);
 
     [DllImport("kernel32.dll")]
     private static extern IntPtr GetStdHandle(int handle);
 
+    [DllImport("kernel32.dll")]
+    private static extern uint GetFileType(IntPtr handle);
+
+    [DllImport("kernel32.dll")]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static extern bool SetStdHandle(int handle, IntPtr value);
+
+    private static bool Usable(IntPtr handle) =>
+        handle != IntPtr.Zero && handle != new IntPtr(-1) && GetFileType(handle) != 0;
+
     public static int Run(string? path)
     {
-        // Temporary CI diagnostic: locate the stdout/stderr break before fixing it.
-        var beforeOut = GetStdHandle(-11).ToInt64();
-        var beforeError = GetStdHandle(-12).ToInt64();
-        var attached = AttachConsole(AttachParentProcess);
-        var attachError = Marshal.GetLastWin32Error();
-        if (Environment.GetEnvironmentVariable("GITHUB_ACTIONS") == "true")
-        {
-            File.WriteAllText(Path.Combine(Path.GetTempPath(), "lootpose-analyze-diagnostics.txt"),
-                $"before stdout={beforeOut}; stderr={beforeError}; attached={attached}; error={attachError}; " +
-                $"after stdout={GetStdHandle(-11).ToInt64()}; stderr={GetStdHandle(-12).ToInt64()}; " +
-                $"managed stderr null={ReferenceEquals(Console.OpenStandardError(), Stream.Null)}");
-        }
+        // A WinExe needs its parent's console, but attachment can replace inherited
+        // pipe/file handles. Keep redirection working for CI, > files and | more.
+        var output = GetStdHandle(-11);
+        var error = GetStdHandle(-12);
+        var keepOutput = Usable(output);
+        var keepError = Usable(error);
+        AttachConsole(AttachParentProcess);
+        if (keepOutput) SetStdHandle(-11, output);
+        if (keepError) SetStdHandle(-12, error);
+        Console.SetOut(new StreamWriter(Console.OpenStandardOutput(), Console.OutputEncoding) { AutoFlush = true });
+        Console.SetError(new StreamWriter(Console.OpenStandardError(), Console.OutputEncoding) { AutoFlush = true });
         if (path is null || !File.Exists(path))
         {
             Console.Error.WriteLine("Usage: LootPoseCompanion.exe --analyze <path to a .replay file>");

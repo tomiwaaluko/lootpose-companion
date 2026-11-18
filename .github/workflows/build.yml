@@ -28,8 +28,6 @@ jobs:
           $ErrorActionPreference = 'Stop'
           $cliText = $cliOutput -join "`n"
           Write-Output $cliText
-          $diagnosticFile = Join-Path $env:TEMP 'lootpose-analyze-diagnostics.txt'
-          if (Test-Path -LiteralPath $diagnosticFile) { Get-Content -LiteralPath $diagnosticFile }
           if ($cliExit -ne 1) { throw "Invalid replay CLI must exit 1; got $cliExit" }
           if (-not $cliText.Contains('Could not be read: The replay could not be read. (Invalid replay file)')) {
             throw 'Invalid replay CLI did not print the expected failure.'
