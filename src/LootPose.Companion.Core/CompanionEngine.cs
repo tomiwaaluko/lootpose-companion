@@ -23,6 +23,7 @@ public sealed class CompanionEngine
     private readonly Dictionary<string, (long Length, DateTime LastWriteUtc)> _lastLook = new(StringComparer.OrdinalIgnoreCase);
     private SyncState _syncState = SyncState.Synced;
     private bool _eventEnded;
+    private DateTimeOffset _nextStatusAt;
 
     public CompanionEngine(Ledger ledger, IReplayFiles files, IGameDataSource data, ISyncClient? sync,
         Func<DateTimeOffset> clock, Func<bool> fortniteRunning, string appVersion)
@@ -54,6 +55,7 @@ public sealed class CompanionEngine
             var flags = new LookFlags();
             var files = _files.List();
             _hint.Observe(_clock().UtcDateTime, _fortniteRunning(), files.Count == 0 ? (DateTime?)null : files.Max(f => f.LastWriteUtc));
+            if (_ledger.IsLinked) await SyncAsync(cancel).ConfigureAwait(false);
             if (_ledger.IsLinked)
             {
                 var data = await _data.GetAsync(cancel).ConfigureAwait(false);
@@ -105,7 +107,17 @@ public sealed class CompanionEngine
 
             var sameAsLastLook = _lastLook.TryGetValue(file.Path, out var last) && last == (file.Length, file.LastWriteUtc);
             _lastLook[file.Path] = (file.Length, file.LastWriteUtc);
-            switch (ReplayReadiness.Check(_files.KeyMissing(file.Path), file.LastWriteUtc, sameAsLastLook, _clock().UtcDateTime))
+            bool keyMissing;
+            try
+            {
+                keyMissing = _files.KeyMissing(file.Path);
+            }
+            catch (Exception e) when (e is IOException or UnauthorizedAccessException)
+            {
+                LookSoon = true;
+                continue;
+            }
+            switch (ReplayReadiness.Check(keyMissing, file.LastWriteUtc, sameAsLastLook, _clock().UtcDateTime))
             {
                 case Readiness.Recording:
                     flags.InProgress = true;
@@ -137,7 +149,12 @@ public sealed class CompanionEngine
                 LookSoon = true;
                 return;
             }
-            catch (Exception e) when (e is IOException or InvalidDataException or TimeoutException or UnauthorizedAccessException)
+            catch (Exception e) when (e is IOException or UnauthorizedAccessException)
+            {
+                LookSoon = true;
+                continue;
+            }
+            catch (Exception e) when (e is InvalidDataException or TimeoutException)
             {
                 _ledger.RecordUnreadable(file.Key, Utc(file.CreatedUtc), _appVersion, _clock(), cutShort: false);
                 continue;
@@ -171,9 +188,11 @@ public sealed class CompanionEngine
 
     private async Task SyncAsync(CancellationToken cancel)
     {
-        if (_sync is null || _ledger.Data.Pending is null) return;
+        if (_sync is null) return;
         var now = _clock();
         if (!_backoff.Allows(now)) return;
+        if (_ledger.Data.Pending is null && now < _nextStatusAt) return;
+        _nextStatusAt = now.AddSeconds(30);
         var result = await _sync.SyncAsync(cancel).ConfigureAwait(false);
         _syncState = result.State;
         if (result.State is SyncState.Offline or SyncState.RateLimited) _backoff.Failed(now, result.Wait);

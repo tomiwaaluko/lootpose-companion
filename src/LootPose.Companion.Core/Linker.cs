@@ -15,6 +15,7 @@ public sealed class Linker(DeviceApi api, Ledger ledger, Func<DateTimeOffset> cl
 
     public async Task<LinkResult> WaitAsync(CancellationToken cancel)
     {
+        if (ledger.IsLinked) return LinkResult.Linked;
         var (deviceId, secret) = ledger.LinkCredentials();
         var secretHex = Convert.ToHexStringLower(secret);
         var started = clock();

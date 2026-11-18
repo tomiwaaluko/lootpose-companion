@@ -62,6 +62,6 @@ public static class ReplayReading
 
         if (!worker.Join(limit)) throw new TimeoutException("Reading the replay took more than 3 minutes.");
         if (failure is not null) throw new InvalidDataException("The replay could not be read.", failure);
-        return ReplayFacts.From(result!);
+        return ReplayFacts.From(result!, bytes, path);
     }
 }

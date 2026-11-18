@@ -11,13 +11,13 @@ internal sealed class MainWindow : Form
     private readonly Label _hint = new() { AutoSize = true, ForeColor = Color.DarkGoldenrod, Text = ReplayHint.Text, Visible = false };
     private readonly Label _linkPrompt = new() { AutoSize = true, Text = StatusText.LinkPrompt };
     private readonly Label _code = new() { AutoSize = true, Font = new Font("Consolas", 16f, FontStyle.Bold) };
-    private readonly Button _link = new() { AutoSize = true, Text = LinkText };
+    private readonly Button _link = new() { AutoSize = true, Text = LinkText, Visible = false };
     private readonly Label _linked = new() { AutoSize = true, Text = StatusText.Linked, Font = new Font("Segoe UI", 9f, FontStyle.Bold) };
     private readonly Label _setup = new() { AutoSize = true, Text = StatusText.ReplaySetup };
     private readonly ListView _matches = new() { View = View.Details, FullRowSelect = true, HeaderStyle = ColumnHeaderStyle.Nonclickable, Size = new Size(460, 260) };
     private readonly Button _open = new() { AutoSize = true, Text = "Open LootPose" };
     private readonly CheckBox _startWithWindows = new() { AutoSize = true, Text = "Start with Windows", Visible = false };
-    private readonly Button _unlink = new() { AutoSize = true, Text = "Unlink this PC" };
+    private readonly Button _unlink = new() { AutoSize = true, Text = "Unlink this PC", Visible = false };
     private readonly LinkLabel _update = new() { AutoSize = true, Text = "Update available", Visible = false };
 
     public MainWindow()

@@ -162,6 +162,7 @@ internal sealed class TrayApp : ApplicationContext
         {
             await _engine.ExclusiveAsync(async () =>
             {
+                if (_ledger.IsLinked) return LinkResult.Linked;
                 var (deviceId, secret) = _ledger.LinkCredentials();
                 Browser.Open(LinkCodes.LinkAddress(deviceId, LinkCodes.Fingerprint(secret)).AbsoluteUri);
                 return await new Linker(api, _ledger, () => DateTimeOffset.UtcNow, Task.Delay).WaitAsync(linking.Token);
@@ -170,6 +171,10 @@ internal sealed class TrayApp : ApplicationContext
         catch (OperationCanceledException)
         {
             // Quitting.
+        }
+        catch (Exception e) when (e is IOException or UnauthorizedAccessException)
+        {
+            ShowStorageFailure();
         }
         finally
         {
@@ -187,24 +192,40 @@ internal sealed class TrayApp : ApplicationContext
     private async void OnUnlinkClicked()
     {
         var answer = MessageBox.Show(
-            "Unlink this PC? The chests it counted stay in your account.\n\nLootPose will open so you can also press Unlink next to \"PC companion\" there.",
+            "Unlink this PC? Chests already synced stay in your account. Waiting counts must sync first.\n\nLootPose will open so you can also press Unlink next to \"PC companion\" there.",
             CompanionInfo.ProductName, MessageBoxButtons.OKCancel, MessageBoxIcon.Question);
         if (answer != DialogResult.OK) return;
         try
         {
-            await _engine.ExclusiveAsync(() =>
+            var unlinked = await _engine.ExclusiveAsync(async () =>
             {
-                _ledger.Forget();
-                return Task.FromResult(true);
+                if (!_ledger.IsLinked) return true;
+                return await LocalUnlink.TryAsync(_ledger,
+                    _api is null ? null : new SyncClient(_api, _ledger), _quit.Token);
             }, _quit.Token);
+            if (!unlinked)
+            {
+                MessageBox.Show("Waiting counts could not be confirmed. Keep this PC linked and try Unlink again when it is online.",
+                    CompanionInfo.ProductName, MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                return;
+            }
         }
         catch (OperationCanceledException)
         {
             return;
         }
+        catch (Exception e) when (e is IOException or UnauthorizedAccessException)
+        {
+            ShowStorageFailure();
+            return;
+        }
         Browser.Open(CompanionInfo.WebAppUrl);
         Kick();
     }
+
+    private static void ShowStorageFailure() =>
+        MessageBox.Show("The companion could not save its local ledger. Check that the disk has space and the app can write to its data folder, then try again.",
+            CompanionInfo.ProductName, MessageBoxButtons.OK, MessageBoxIcon.Warning);
 
     private void Quit()
     {
