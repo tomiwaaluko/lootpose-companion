@@ -13,5 +13,7 @@ jobs:
       - uses: actions/setup-dotnet@v4
         with:
           dotnet-version: '10.0.x'
-      - name: Test (RED before library exists)
+      - name: Test
         run: dotnet test tests/LootPose.Companion.Tests/LootPose.Companion.Tests.csproj -c Release
+      - name: Build the app
+        run: dotnet build src/LootPose.Companion/LootPose.Companion.csproj -c Release
