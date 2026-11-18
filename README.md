@@ -79,4 +79,7 @@ variables with the same names. Without them the app runs but cannot link.
 
 ## Licence
 
-MIT. See `LICENSE`.
+The companion's own code is MIT. See `LICENSE`.
+
+The copied `vendor/lib/OozSharp/Kraken.cs` file retains a GNU GPL version 3-or-later notice (Powzix, C# conversion
+by SL-x-TnT). See that file's header. The owner reviews distribution licensing before the first release.
