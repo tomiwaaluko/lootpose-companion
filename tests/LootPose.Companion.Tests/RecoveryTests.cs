@@ -132,6 +132,78 @@ public class RecoveryTests
         Assert.Empty(http.Requests);
     }
 
+    [Fact]
+    public async Task An_idle_reset_is_adopted_before_the_next_match_and_status_checks_are_bounded()
+    {
+        using var folder = new TempFolder();
+        var ledger = TestLedgers.Linked(folder);
+        ledger.Record(TestLedgers.Counted("old", "2026-11-15|normal", 4), "old|1|1");
+        ledger.Pushed(ledger.Data.Pending!, 1, 0);
+        var http = new FakeHttp()
+            .Reply("""{"ok":true,"buckets":{},"revision":2,"epoch":1}""")
+            .Reply("""{"ok":true,"buckets":{"2026-11-15|normal":3},"revision":3,"epoch":1}""");
+        var api = new DeviceApi(new HttpClient(http), new ServerConfig(new Uri("https://project.example/"), "test-key"));
+        var files = new RecoveringFiles();
+        var engine = Engine(ledger, files, new SyncClient(api, ledger));
+
+        await engine.TickAsync(CancellationToken.None);
+        Assert.Equal(1, ledger.Data.Epoch);
+        Assert.Equal(MatchOutcome.BeforeReset, ledger.Data.Matches.Single().Outcome);
+        await engine.TickAsync(CancellationToken.None);
+        Assert.Single(http.Requests);
+
+        files.Add("new");
+        await engine.TickAsync(CancellationToken.None);
+        Assert.Equal(3, ledger.Buckets()["2026-11-15|normal"]);
+        Assert.Equal(MatchOutcome.Counted, ledger.Data.Matches.Single(m => m.Key == "new").Outcome);
+        Assert.Null(ledger.Data.Pending);
+        Assert.Equal(2, http.Requests.Count);
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void Renamed_replays_with_a_missing_session_ID_count_once(bool emptyId)
+    {
+        using var folder = new TempFolder();
+        var ledger = TestLedgers.Linked(folder);
+        var bytes = new byte[] { 1, 2, 3 };
+        ChestCounter.MatchRecord Match(string name) => new()
+        {
+            SessionId = emptyId ? "" : "2026-11-21T19:00:00.0000000Z-" + name,
+            ReplayFile = name,
+            Playlist = "Playlist_DefaultSquad",
+            Map = "/Delilah/Maps/Delilah_Terrain",
+        };
+        var first = ReplayFacts.From(Match("first.replay"), bytes, "first.replay");
+        var renamed = ReplayFacts.From(Match("renamed.replay"), bytes, "renamed.replay");
+        Assert.True(ledger.Record(TestLedgers.Counted(first.SessionId, "2026-11-15|normal", 4), "first|1|1"));
+        Assert.False(ledger.Record(TestLedgers.Counted(renamed.SessionId, "2026-11-15|normal", 4), "renamed|1|1"));
+        Assert.Equal(4, ledger.Buckets()["2026-11-15|normal"]);
+        Assert.NotEqual(first.SessionId, ReplayFacts.From(Match("first.replay"), new byte[] { 4, 5, 6 }, "first.replay").SessionId);
+        var genuine = Match("first.replay");
+        genuine.SessionId = "real-game-session-id";
+        Assert.Equal(genuine.SessionId, ReplayFacts.From(genuine, bytes, "first.replay").SessionId);
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task Local_unlink_keeps_pending_counts_until_their_push_is_confirmed(bool online)
+    {
+        using var folder = new TempFolder();
+        var ledger = TestLedgers.Linked(folder);
+        ledger.Record(TestLedgers.Counted("a", "2026-11-15|normal", 4), "a|1|1");
+        var sync = new FakeSync(ledger) { Next = new SyncResult(online ? SyncState.Synced : SyncState.Offline) };
+
+        var unlinked = await LocalUnlink.TryAsync(ledger, sync, CancellationToken.None);
+
+        Assert.Equal(online, unlinked);
+        Assert.Equal(!online, ledger.IsLinked);
+        Assert.Equal(1, sync.Calls);
+        Assert.Equal(!online, Ledger.Open(folder.Path).Data.Pending is not null);
+    }
+
     private static CompanionEngine Engine(Ledger ledger, IReplayFiles files, ISyncClient sync) =>
         new(ledger, files, new FakeData(Schedule), sync, () => Now, () => false, "1.0.0");
 
