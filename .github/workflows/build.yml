@@ -1,0 +1,17 @@
+name: Build LootPoseCompanion.exe
+on:
+  push:
+    branches: ['**']
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+      - name: Test (RED before library exists)
+        run: dotnet test tests/LootPose.Companion.Tests/LootPose.Companion.Tests.csproj -c Release
