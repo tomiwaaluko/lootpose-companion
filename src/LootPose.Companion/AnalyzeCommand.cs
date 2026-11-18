@@ -7,14 +7,27 @@ internal static class AnalyzeCommand
 {
     private const int AttachParentProcess = -1;
 
-    [DllImport("kernel32.dll")]
+    [DllImport("kernel32.dll", SetLastError = true)]
     [return: MarshalAs(UnmanagedType.Bool)]
     private static extern bool AttachConsole(int processId);
 
+    [DllImport("kernel32.dll")]
+    private static extern IntPtr GetStdHandle(int handle);
+
     public static int Run(string? path)
     {
-        // The exe is a Windows app with no console of its own: print into the one it was started from.
-        AttachConsole(AttachParentProcess);
+        // Temporary CI diagnostic: locate the stdout/stderr break before fixing it.
+        var beforeOut = GetStdHandle(-11).ToInt64();
+        var beforeError = GetStdHandle(-12).ToInt64();
+        var attached = AttachConsole(AttachParentProcess);
+        var attachError = Marshal.GetLastWin32Error();
+        if (Environment.GetEnvironmentVariable("GITHUB_ACTIONS") == "true")
+        {
+            File.WriteAllText(Path.Combine(Path.GetTempPath(), "lootpose-analyze-diagnostics.txt"),
+                $"before stdout={beforeOut}; stderr={beforeError}; attached={attached}; error={attachError}; " +
+                $"after stdout={GetStdHandle(-11).ToInt64()}; stderr={GetStdHandle(-12).ToInt64()}; " +
+                $"managed stderr null={ReferenceEquals(Console.OpenStandardError(), Stream.Null)}");
+        }
         if (path is null || !File.Exists(path))
         {
             Console.Error.WriteLine("Usage: LootPoseCompanion.exe --analyze <path to a .replay file>");
