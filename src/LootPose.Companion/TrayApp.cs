@@ -58,7 +58,18 @@ internal sealed class TrayApp : ApplicationContext
         _showRegistration = ThreadPool.RegisterWaitForSingleObject(showSignal,
             (_, _) => OnUi(ShowWindow), null, Timeout.Infinite, executeOnlyOnce: false);
 
-        // Start with Windows (Task 12) and the update check (Task 13) are wired here.
+        var startWithWindows = new StartWithWindows();
+        if (Environment.ProcessPath is { } exe)
+        {
+            startWithWindows.Refresh(exe);
+            _window.ShowStartWithWindows(startWithWindows.IsOn());
+            _window.StartWithWindowsChanged += on =>
+            {
+                if (!startWithWindows.Set(on, exe)) _window.ShowStartWithWindows(startWithWindows.IsOn());
+            };
+        }
+
+        // The update check (Task 13) is wired here.
 
         if (showWindow) ShowWindow();
         Kick();
