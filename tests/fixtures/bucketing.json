@@ -1,0 +1,63 @@
+{
+  "about": "Examples of which bucket a chest goes in. The web app (TypeScript) and the PC companion (C#) must both give the bucket shown for every example. Each example names one of the data files below and an instant in UTC. The bucket is '<week>|<period>': the week is the UTC date of the most recent weekly reset at or before the instant, and the period is the id of the Treasure Hour containing the instant (start included, end excluded), or 'normal'.",
+  "dataFiles": {
+    "sunday-reset": {
+      "updated": "2026-11-15",
+      "weeklyReset": { "day": "sunday", "timeUtc": "14:00" },
+      "eventEnd": "2026-12-05T19:00:00Z",
+      "treasures": [
+        { "id": "pirate-shop-access", "name": "Pirate Shop Access", "oneIn": 137500, "featured": true, "weekly": false }
+      ],
+      "treasureHours": [
+        {
+          "id": "2026-11-07-night",
+          "start": "2026-11-08T02:00:00Z",
+          "end": "2026-11-08T04:00:00Z",
+          "multipliers": { "pirate-shop-access": 2.0 }
+        },
+        {
+          "id": "2026-11-14-afternoon",
+          "start": "2026-11-14T19:00:00Z",
+          "end": "2026-11-14T21:00:00Z",
+          "multipliers": { "pirate-shop-access": 1.5 },
+          "expected": true
+        }
+      ]
+    },
+    "wednesday-reset": {
+      "updated": "2026-11-15",
+      "weeklyReset": { "day": "wednesday", "timeUtc": "09:30" },
+      "treasures": [
+        { "id": "pirate-shop-access", "name": "Pirate Shop Access", "oneIn": 137500, "featured": true, "weekly": false }
+      ],
+      "treasureHours": [
+        {
+          "id": "reset-crossing",
+          "start": "2026-11-18T09:00:00Z",
+          "end": "2026-11-18T10:00:00Z",
+          "multipliers": { "pirate-shop-access": 2.0 }
+        }
+      ]
+    }
+  },
+  "examples": [
+    { "name": "a normal week", "dataFile": "sunday-reset", "instant": "2026-11-11T09:00:00Z", "bucket": "2026-11-08|normal" },
+    { "name": "the minute before a weekly reset", "dataFile": "sunday-reset", "instant": "2026-11-15T13:59:00Z", "bucket": "2026-11-08|normal" },
+    { "name": "the last millisecond before a weekly reset", "dataFile": "sunday-reset", "instant": "2026-11-15T13:59:59.999Z", "bucket": "2026-11-08|normal" },
+    { "name": "the instant of a weekly reset", "dataFile": "sunday-reset", "instant": "2026-11-15T14:00:00Z", "bucket": "2026-11-15|normal" },
+    { "name": "the minute after a weekly reset", "dataFile": "sunday-reset", "instant": "2026-11-15T14:01:00Z", "bucket": "2026-11-15|normal" },
+    { "name": "the second before a Treasure Hour", "dataFile": "sunday-reset", "instant": "2026-11-08T01:59:59Z", "bucket": "2026-11-01|normal" },
+    { "name": "the first second of a Treasure Hour", "dataFile": "sunday-reset", "instant": "2026-11-08T02:00:00Z", "bucket": "2026-11-01|2026-11-07-night" },
+    { "name": "inside a Treasure Hour on reset day, before the reset time", "dataFile": "sunday-reset", "instant": "2026-11-08T03:00:00Z", "bucket": "2026-11-01|2026-11-07-night" },
+    { "name": "the last second of a Treasure Hour", "dataFile": "sunday-reset", "instant": "2026-11-08T03:59:59Z", "bucket": "2026-11-01|2026-11-07-night" },
+    { "name": "the last millisecond of a Treasure Hour", "dataFile": "sunday-reset", "instant": "2026-11-08T03:59:59.999Z", "bucket": "2026-11-01|2026-11-07-night" },
+    { "name": "the instant a Treasure Hour ends", "dataFile": "sunday-reset", "instant": "2026-11-08T04:00:00Z", "bucket": "2026-11-01|normal" },
+    { "name": "an expected Treasure Hour", "dataFile": "sunday-reset", "instant": "2026-11-14T19:30:00Z", "bucket": "2026-11-08|2026-11-14-afternoon" },
+    { "name": "a week that starts in one month and runs into the next", "dataFile": "sunday-reset", "instant": "2026-12-02T10:00:00Z", "bucket": "2026-11-29|normal" },
+    { "name": "the day before reset day, with a reset that is not on the hour", "dataFile": "wednesday-reset", "instant": "2026-11-17T23:59:59Z", "bucket": "2026-11-11|normal" },
+    { "name": "reset day at midnight, before the reset time", "dataFile": "wednesday-reset", "instant": "2026-11-18T00:00:00Z", "bucket": "2026-11-11|normal" },
+    { "name": "a Treasure Hour that crosses a weekly reset, before the reset", "dataFile": "wednesday-reset", "instant": "2026-11-18T09:29:59Z", "bucket": "2026-11-11|reset-crossing" },
+    { "name": "a Treasure Hour that crosses a weekly reset, at the reset", "dataFile": "wednesday-reset", "instant": "2026-11-18T09:30:00Z", "bucket": "2026-11-18|reset-crossing" },
+    { "name": "after a Treasure Hour that crossed a weekly reset", "dataFile": "wednesday-reset", "instant": "2026-11-18T10:00:00Z", "bucket": "2026-11-18|normal" }
+  ]
+}
