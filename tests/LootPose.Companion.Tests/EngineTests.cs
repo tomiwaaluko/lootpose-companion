@@ -53,11 +53,16 @@ public class EngineTests
         public void Dispose() => _folder.Dispose();
     }
 
-    [Fact]
-    public void The_last_match_line_reads_as_the_spec_writes_it()
+    [Theory]
+    [InlineData(1, SyncState.Synced, "Last match: 1 chest · Synced")]
+    [InlineData(12, SyncState.Synced, "Last match: 12 chests · Synced")]
+    [InlineData(1, SyncState.Offline, "Last match: 1 chest · Offline, will retry")]
+    [InlineData(12, SyncState.Offline, "Last match: 12 chests · Offline, will retry")]
+    [InlineData(1, SyncState.Rejected, "Last match: 1 chest · Not accepted")]
+    [InlineData(12, SyncState.Rejected, "Last match: 12 chests · Not accepted")]
+    public void The_last_match_line_reads_as_the_spec_writes_it(int chests, SyncState state, string expected)
     {
-        Assert.Equal("Last match: 12 chests · Synced", StatusText.LastMatch(12, synced: true));
-        Assert.Equal("Last match: 1 chest · Offline, will retry", StatusText.LastMatch(1, synced: false));
+        Assert.Equal(expected, StatusText.LastMatch(chests, state));
     }
 
     [Fact]

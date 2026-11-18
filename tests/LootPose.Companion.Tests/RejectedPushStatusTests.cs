@@ -12,8 +12,8 @@ public class RejectedPushStatusTests
     private const string Accepted = """{"ok":true,"buckets":{"2026-11-15|normal":5},"revision":1,"epoch":0}""";
 
     [Theory]
-    [InlineData("invalid_counts", "Last match: 4 chests · Offline, will retry")]
-    [InlineData("invalid_request", "Last match: 4 chests · Offline, will retry")]
+    [InlineData("invalid_counts", "Last match: 4 chests · Not accepted")]
+    [InlineData("invalid_request", "Last match: 4 chests · Not accepted")]
     [InlineData("event_ended", "The event has ended.")]
     public async Task A_terminal_rejection_keeps_its_status_after_idle_checks_and_restart(string error, string expected)
     {
@@ -104,6 +104,34 @@ public class RejectedPushStatusTests
         Assert.Equal(1, reopened.Data.Version);
         Assert.Equal(4, reopened.Buckets()["2026-11-15|normal"]);
         Assert.Equal("Last match: 4 chests · Synced", engine.View.Status);
+    }
+
+    [Fact]
+    public async Task An_in_memory_rejection_also_shows_not_accepted()
+    {
+        using var folder = new TempFolder();
+        var ledger = Pending(folder);
+        ledger.Pushed(ledger.Data.Pending!, 1, 0);
+        var sync = new FakeSync(ledger) { Next = new SyncResult(SyncState.Rejected) };
+        var engine = Engine(ledger, sync);
+        await engine.TickAsync(CancellationToken.None);
+        Assert.Equal("Last match: 4 chests · Not accepted", engine.View.Status);
+    }
+
+    [Fact]
+    public async Task A_new_pending_push_shows_waiting_even_after_an_earlier_rejection()
+    {
+        using var folder = new TempFolder();
+        var ledger = Pending(folder);
+        await Sync(ledger, new FakeHttp().Reply(Rejected("invalid_counts"))).SyncAsync(CancellationToken.None);
+        var next = TestLedgers.Counted("new", "2026-11-15|normal", 1);
+        next.HandledAt = Now;
+        ledger.Record(next, "new|1|1");
+        var sync = new FakeSync(ledger) { Next = new SyncResult(SyncState.Offline) };
+        var engine = Engine(ledger, sync);
+        await engine.TickAsync(CancellationToken.None);
+        Assert.NotNull(ledger.Data.Pending);
+        Assert.Equal("Last match: 1 chest · Offline, will retry", engine.View.Status);
     }
 
     private static string Rejected(string error) => $$"""{"ok":false,"error":"{{error}}"}""";
