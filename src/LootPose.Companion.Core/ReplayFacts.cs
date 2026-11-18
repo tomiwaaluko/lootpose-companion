@@ -13,6 +13,8 @@ public sealed record ReplayFacts(
     bool CountsByMode,
     IReadOnlyList<ChestFact> Chests)
 {
+    public static ReplayFacts From(MatchRecord match, byte[] replayBytes, string fileName) => From(match);
+
     /// <summary>From LED-N's analysis. Which matches count is LED-N's rule, GameModes.Counts, unchanged.</summary>
     public static ReplayFacts From(MatchRecord match) => new(
         match.SessionId,

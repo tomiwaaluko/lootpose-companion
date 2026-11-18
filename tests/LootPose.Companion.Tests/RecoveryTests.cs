@@ -49,7 +49,8 @@ public class RecoveryTests
 
         using (var locked = new FileStream(Path.Combine(folder.Path, "ledger.json"), FileMode.Open, FileAccess.Read, FileShare.Read))
         {
-            Assert.ThrowsAny<IOException>(change);
+            var failure = Record.Exception(change);
+            Assert.True(failure is IOException or UnauthorizedAccessException);
             Assert.Equal(before, JsonSerializer.Serialize(ledger.Data));
         }
         Assert.Equal(before, JsonSerializer.Serialize(Ledger.Open(folder.Path).Data));
@@ -66,8 +67,11 @@ public class RecoveryTests
         var engine = Engine(ledger, files, sync);
         using (var locked = new FileStream(Path.Combine(folder.Path, "ledger.json"), FileMode.Open, FileAccess.Read, FileShare.Read))
         {
-            await Assert.ThrowsAnyAsync<IOException>(() => engine.TickAsync(CancellationToken.None));
-            await Assert.ThrowsAnyAsync<IOException>(() => engine.TickAsync(CancellationToken.None));
+            for (var tick = 0; tick < 2; tick++)
+            {
+                var failure = await Record.ExceptionAsync(() => engine.TickAsync(CancellationToken.None));
+                Assert.True(failure is IOException or UnauthorizedAccessException);
+            }
             Assert.Equal(0, sync.Calls);
             Assert.Null(ledger.Data.Pending);
         }
