@@ -2,9 +2,10 @@ name: Build LootPoseCompanion.exe
 on:
   push:
     branches: ['**']
+    tags: ['v*']
   workflow_dispatch:
 permissions:
-  contents: read
+  contents: write
 jobs:
   build:
     runs-on: windows-latest
@@ -13,7 +14,38 @@ jobs:
       - uses: actions/setup-dotnet@v4
         with:
           dotnet-version: '10.0.x'
-      - name: Test
-        run: dotnet test tests/LootPose.Companion.Tests/LootPose.Companion.Tests.csproj -c Release
       - name: Build the app
         run: dotnet build src/LootPose.Companion/LootPose.Companion.csproj -c Release
+      - name: Test
+        run: dotnet test tests/LootPose.Companion.Tests/LootPose.Companion.Tests.csproj -c Release
+      - name: Publish one self-contained exe
+        shell: pwsh
+        env:
+          SUPABASE_URL: ${{ vars.LOOTPOSE_SUPABASE_URL }}
+          SUPABASE_KEY: ${{ vars.LOOTPOSE_SUPABASE_KEY }}
+          REF: ${{ github.ref }}
+          REF_NAME: ${{ github.ref_name }}
+        run: |
+          $publish = @('publish', 'src/LootPose.Companion/LootPose.Companion.csproj', '-c', 'Release', '-r', 'win-x64',
+            '--self-contained', 'true', '-p:PublishSingleFile=true', '-p:IncludeNativeLibrariesForSelfExtract=true',
+            '-p:EnableCompressionInSingleFile=true', '-p:DebugType=none', '-o', 'dist')
+          if ($env:REF.StartsWith('refs/tags/v')) {
+            if (-not $env:SUPABASE_URL -or -not $env:SUPABASE_KEY) {
+              throw 'Set the repository variables LOOTPOSE_SUPABASE_URL and LOOTPOSE_SUPABASE_KEY before tagging a release.'
+            }
+            $publish += "-p:Version=$($env:REF_NAME.Substring(1))"
+          }
+          if ($env:SUPABASE_URL) { $publish += "-p:SupabaseUrl=$env:SUPABASE_URL" }
+          if ($env:SUPABASE_KEY) { $publish += "-p:SupabasePublishableKey=$env:SUPABASE_KEY" }
+          dotnet @publish
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - uses: actions/upload-artifact@v4
+        with:
+          name: LootPoseCompanion
+          path: dist/LootPoseCompanion.exe
+      - name: Attach to the release (tags only)
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: dist/LootPoseCompanion.exe
+          body_path: RELEASE_NOTES.md
