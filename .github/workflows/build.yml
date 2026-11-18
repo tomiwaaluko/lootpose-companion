@@ -18,6 +18,21 @@ jobs:
         run: dotnet build src/LootPose.Companion/LootPose.Companion.csproj -c Release
       - name: Test
         run: dotnet test tests/LootPose.Companion.Tests/LootPose.Companion.Tests.csproj -c Release
+      - name: Check invalid replay CLI output
+        if: ${{ hashFiles('src/LootPose.Companion/AnalyzeCommand.cs') != '' }}
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Continue'
+          $cliOutput = dotnet run --project src/LootPose.Companion/LootPose.Companion.csproj -c Release --no-build -- --analyze README.md 2>&1
+          $cliExit = $LASTEXITCODE
+          $ErrorActionPreference = 'Stop'
+          $cliText = $cliOutput -join "`n"
+          Write-Output $cliText
+          if ($cliExit -ne 1) { throw "Invalid replay CLI must exit 1; got $cliExit" }
+          if (-not $cliText.Contains('Could not be read: The replay could not be read. (Invalid replay file)')) {
+            throw 'Invalid replay CLI did not print the expected failure.'
+          }
+          exit 0
       - name: Publish one self-contained exe
         shell: pwsh
         env:
