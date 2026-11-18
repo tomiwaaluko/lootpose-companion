@@ -1,0 +1,28 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <UseWindowsForms>true</UseWindowsForms>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <RootNamespace>LootPose.Companion.App</RootNamespace>
+    <AssemblyName>LootPoseCompanion</AssemblyName>
+    <Product>LootPose Companion</Product>
+    <Version>0.1.0</Version>
+    <!-- LED-N's reader finds its types by reflection, so the published file is never trimmed. -->
+    <PublishTrimmed>false</PublishTrimmed>
+    <!-- A small idle footprint, as LED-N's app has. -->
+    <ServerGarbageCollection>false</ServerGarbageCollection>
+    <ConcurrentGarbageCollection>false</ConcurrentGarbageCollection>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\LootPose.Companion.Core\LootPose.Companion.Core.csproj" />
+  </ItemGroup>
+  <!-- LootPose's database address and publishable key, public by design, from the repository variables at build time. -->
+  <ItemGroup Condition="'$(SupabaseUrl)' != ''">
+    <AssemblyMetadata Include="SupabaseUrl" Value="$(SupabaseUrl)" />
+  </ItemGroup>
+  <ItemGroup Condition="'$(SupabasePublishableKey)' != ''">
+    <AssemblyMetadata Include="SupabasePublishableKey" Value="$(SupabasePublishableKey)" />
+  </ItemGroup>
+</Project>
