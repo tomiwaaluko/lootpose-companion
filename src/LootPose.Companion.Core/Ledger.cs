@@ -57,6 +57,9 @@ public sealed class LedgerData
 
     public PendingPush? Pending { get; set; }
 
+    /// <summary>A terminal push rejection. Missing in older ledgers; cleared by acceptance, reset or a new link.</summary>
+    public SyncState? PushRejection { get; set; }
+
     public List<MatchEntry> Matches { get; set; } = new();
 
     /// <summary>
@@ -160,6 +163,7 @@ public sealed class Ledger
             Data.Revision = 0;
             Data.Epoch = 0;
             Data.Pending = null;
+            Data.PushRejection = null;
             Save();
         }
         return (Data.DeviceId!, Unprotect(Data.ProtectedSecret!));
@@ -175,6 +179,7 @@ public sealed class Ledger
         Data.Revision = revision;
         Data.Epoch = epoch;
         Data.Pending = null;
+        Data.PushRejection = null;
         Save();
     }
 
@@ -187,6 +192,7 @@ public sealed class Ledger
         Data.Revision = 0;
         Data.Epoch = 0;
         Data.Pending = null;
+        Data.PushRejection = null;
         Save();
     }
 
@@ -225,6 +231,7 @@ public sealed class Ledger
         Data.Revision = revision;
         Data.Epoch = epoch;
         if (Data.Pending?.RequestId == sent.RequestId) Data.Pending = null;
+        Data.PushRejection = null;
         Save();
     }
 
@@ -247,6 +254,7 @@ public sealed class Ledger
         Data.Epoch = epoch;
         Data.Revision = revision;
         Data.Pending = null;
+        Data.PushRejection = null;
         Save();
     }
 
@@ -258,9 +266,10 @@ public sealed class Ledger
         Save();
     }
 
-    public void DropPending()
+    public void DropPending(SyncState? rejection = null)
     {
         Data.Pending = null;
+        Data.PushRejection = rejection;
         Save();
     }
 

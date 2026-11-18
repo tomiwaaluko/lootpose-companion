@@ -65,11 +65,11 @@ public sealed class SyncClient(DeviceApi api, Ledger ledger) : ISyncClient
                 case "rate_limited":
                     return new SyncResult(SyncState.RateLimited, WaitOf(reply));
                 case "event_ended":
-                    ledger.DropPending();
+                    ledger.DropPending(SyncState.EventEnded);
                     return new SyncResult(SyncState.EventEnded);
                 case "invalid_counts":
                 case "invalid_request":
-                    ledger.DropPending();
+                    ledger.DropPending(SyncState.Rejected);
                     return new SyncResult(SyncState.Rejected);
                 default:
                     return new SyncResult(SyncState.Offline);
