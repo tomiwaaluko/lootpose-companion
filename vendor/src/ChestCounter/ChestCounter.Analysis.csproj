@@ -1,0 +1,11 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- LootPose Companion: LED-N's analyzer files as a library. LED-N's ChestCounter.csproj builds their whole app and is
+       not copied. See vendor/UPSTREAM.md. -->
+  <PropertyGroup>
+    <AssemblyName>ChestCounter.Analysis</AssemblyName>
+    <RootNamespace>ChestCounter</RootNamespace>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\..\lib\FortniteReplayReader\FortniteReplayReader.csproj" />
+  </ItemGroup>
+</Project>
