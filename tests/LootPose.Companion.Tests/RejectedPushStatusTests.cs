@@ -52,7 +52,9 @@ public class RejectedPushStatusTests
         var sync = Sync(ledger, http);
         await sync.SyncAsync(CancellationToken.None);
 
-        ledger.Record(TestLedgers.Counted("new", "2026-11-15|normal", 1), "new|1|1");
+        var next = TestLedgers.Counted("new", "2026-11-15|normal", 1);
+        next.HandledAt = Now;
+        ledger.Record(next, "new|1|1");
         Assert.Equal(SyncState.Synced, (await sync.SyncAsync(CancellationToken.None)).State);
         var engine = Engine(Ledger.Open(folder.Path));
         await engine.TickAsync(CancellationToken.None);
