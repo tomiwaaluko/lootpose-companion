@@ -14,9 +14,17 @@ public static class StatusText
     public const string Linked = "Linked";
     public const string ReplaySetup = "In Fortnite: Settings, Game, Replays, Record Replays: On.";
 
-    /// <summary>"Last match: 12 chests · Synced" or "Last match: 12 chests · Offline, will retry".</summary>
-    public static string LastMatch(int chests, bool synced) =>
-        $"Last match: {Chests(chests)} · {(synced ? "Synced" : "Offline, will retry")}";
+    /// <summary>Last match with Synced, Offline, will retry, or Not accepted, according to the push state.</summary>
+    public static string LastMatch(int chests, SyncState state)
+    {
+        var text = state switch
+        {
+            SyncState.Synced => "Synced",
+            SyncState.Rejected => "Not accepted",
+            _ => "Offline, will retry",
+        };
+        return $"Last match: {Chests(chests)} · {text}";
+    }
 
     /// <summary>"1 chest", "12 chests".</summary>
     public static string Chests(int count) => count == 1 ? "1 chest" : $"{count} chests";

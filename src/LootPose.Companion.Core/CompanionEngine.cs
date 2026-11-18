@@ -227,8 +227,10 @@ public sealed class CompanionEngine
             .OrderByDescending(m => m.HandledAt)
             .FirstOrDefault();
         if (counted is null) return StatusText.Waiting;
-        var synced = _ledger.Data.Pending is null && _ledger.Data.PushRejection is null && _syncState != SyncState.Rejected;
-        return StatusText.LastMatch(counted.Chests, synced);
+        var state = _ledger.Data.Pending is not null ? SyncState.Offline
+            : _ledger.Data.PushRejection == SyncState.Rejected || _syncState == SyncState.Rejected
+                ? SyncState.Rejected : SyncState.Synced;
+        return StatusText.LastMatch(counted.Chests, state);
     }
 
     /// <summary>The window lists the last 20 matches, newest first.</summary>
