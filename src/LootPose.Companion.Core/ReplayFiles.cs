@@ -46,7 +46,38 @@ public sealed class DemosFolder(string folder) : IReplayFiles
         }
     }
 
-    public bool KeyMissing(string path) => ChestCounter.ReplayHeaderProbe.KeyMissing(path);
+    public bool KeyMissing(string path)
+    {
+        // The copied probe swallows access failures. Keep those retryable here, without changing vendor code.
+        using var stream = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete);
+        using var reader = new BinaryReader(stream);
+        try
+        {
+            if (reader.ReadUInt32() != 0x1CA2E27Fu) return true;
+            var version = reader.ReadUInt32();
+            if (version >= 7)
+            {
+                var count = reader.ReadInt32();
+                if (count < 0 || count > 64) return true;
+                stream.Seek(count * 20L, SeekOrigin.Current);
+            }
+            stream.Seek(12, SeekOrigin.Current);
+            var length = reader.ReadInt32();
+            stream.Seek(length < 0 ? -2L * length : length, SeekOrigin.Current);
+            reader.ReadUInt32(); // live
+            reader.ReadInt64();  // timestamp
+            reader.ReadUInt32(); // compressed
+            if (reader.ReadUInt32() == 0) return false;
+            var keyLength = reader.ReadInt32();
+            if (keyLength <= 0 || keyLength > 256) return true;
+            var key = reader.ReadBytes(keyLength);
+            return key.Length != keyLength || key.All(b => b == 0);
+        }
+        catch (EndOfStreamException)
+        {
+            return true; // an incomplete header, rather than a temporary access failure
+        }
+    }
 
     public ReplayFacts Read(string path) => ReplayReading.Read(path);
 }

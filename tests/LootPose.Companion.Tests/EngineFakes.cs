@@ -47,6 +47,7 @@ internal sealed class FakeSync(Ledger ledger) : ISyncClient
 
     public Task<SyncResult> SyncAsync(CancellationToken cancel)
     {
+        if (ledger.Data.Pending is null) return Task.FromResult(Next);
         Calls++;
         if (Next.State == SyncState.Synced && ledger.Data.Pending is { } pending)
         {

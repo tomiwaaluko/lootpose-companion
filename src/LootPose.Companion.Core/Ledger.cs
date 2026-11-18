@@ -85,14 +85,16 @@ public sealed class Ledger
     private static readonly byte[] Entropy = Encoding.UTF8.GetBytes("LootPose Companion");
 
     private readonly string _path;
+    private string _savedJson;
 
     private Ledger(string path, LedgerData data)
     {
         _path = path;
         Data = data;
+        _savedJson = JsonSerializer.Serialize(data, Json);
     }
 
-    public LedgerData Data { get; }
+    public LedgerData Data { get; private set; }
 
     public bool IsLinked => Data.DeviceId is not null && Data.ProtectedSecret is not null && Data.LinkedAt is not null;
 
@@ -115,7 +117,21 @@ public sealed class Ledger
         return ledger;
     }
 
-    public void Save() => AtomicFile.WriteAllText(_path, JsonSerializer.Serialize(Data, Json));
+    public void Save()
+    {
+        var next = JsonSerializer.Serialize(Data, Json);
+        try
+        {
+            AtomicFile.WriteAllText(_path, next);
+            _savedJson = next;
+        }
+        catch (Exception e) when (e is IOException or UnauthorizedAccessException)
+        {
+            // No caller may see or send a change that was not durably written.
+            Data = JsonSerializer.Deserialize<LedgerData>(_savedJson, Json)!;
+            throw;
+        }
+    }
 
     /// <summary>This PC's row: every match counted under the current link.</summary>
     public Dictionary<string, int> Buckets()

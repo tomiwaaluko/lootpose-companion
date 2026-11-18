@@ -15,7 +15,7 @@ public readonly record struct SyncResult(SyncState State, TimeSpan? Wait = null)
 
 public interface ISyncClient
 {
-    /// <summary>Sends the waiting push, if there is one. A network problem is a result, never an exception.</summary>
+    /// <summary>Sends the waiting push or checks idle link/reset state. Network failures are results.</summary>
     Task<SyncResult> SyncAsync(CancellationToken cancel);
 }
 
@@ -25,6 +25,11 @@ public sealed class SyncClient(DeviceApi api, Ledger ledger) : ISyncClient
     public async Task<SyncResult> SyncAsync(CancellationToken cancel)
     {
         if (!ledger.IsLinked) return new SyncResult(SyncState.NotLinked);
+        if (ledger.Data.Pending is null)
+        {
+            var refreshed = await ResolveConflictAsync(cancel).ConfigureAwait(false);
+            if (refreshed is { } final) return final;
+        }
 
         // A conflict costs one status call and one more push, so three rounds are always enough.
         for (var round = 0; round < 3; round++)

@@ -1,4 +1,6 @@
 using ChestCounter;
+using System.Globalization;
+using System.Security.Cryptography;
 
 namespace LootPose.Companion;
 
@@ -13,6 +15,22 @@ public sealed record ReplayFacts(
     bool CountsByMode,
     IReadOnlyList<ChestFact> Chests)
 {
+    /// <summary>Keep real session IDs; replace the vendor's timestamp-filename fallback with a digest of the bytes.</summary>
+    public static ReplayFacts From(MatchRecord match, byte[] replayBytes, string fileName)
+    {
+        var suffix = "-" + Path.GetFileName(fileName);
+        var id = match.SessionId;
+        var fallback = string.IsNullOrEmpty(id);
+        if (!fallback && id.EndsWith(suffix, StringComparison.Ordinal))
+        {
+            var prefix = id[..^suffix.Length];
+            fallback = prefix.Length == 0 || DateTime.TryParseExact(prefix, "O", CultureInfo.InvariantCulture,
+                DateTimeStyles.RoundtripKind, out _);
+        }
+        var facts = From(match);
+        return fallback ? facts with { SessionId = "replay:" + Convert.ToHexStringLower(SHA256.HashData(replayBytes)) } : facts;
+    }
+
     /// <summary>From LED-N's analysis. Which matches count is LED-N's rule, GameModes.Counts, unchanged.</summary>
     public static ReplayFacts From(MatchRecord match) => new(
         match.SessionId,
